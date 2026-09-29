@@ -16,6 +16,7 @@ import (
 	"github.com/docker/mcp-gateway/pkg/db"
 	mcpoci "github.com/docker/mcp-gateway/pkg/oci"
 	"github.com/docker/mcp-gateway/pkg/skills"
+	"github.com/docker/mcp-gateway/pkg/telemetry"
 	"github.com/docker/mcp-gateway/pkg/user"
 )
 
@@ -282,6 +283,8 @@ func AddSkill(ctx context.Context, dao db.DAO, refStr, nameOrURI string, asJSON 
 	if err := dao.AddSkill(ctx, added); err != nil {
 		return err
 	}
+	telemetry.Init()
+	telemetry.RecordSkillAdd(ctx, refStr)
 	if asJSON {
 		return printJSON(SkillStatus{Name: skills.Name(entry.URI), URI: entry.URI, CatalogRef: refStr, ManifestDigest: dgst, CurrentDigest: dgst, Status: "ok"})
 	}
@@ -348,14 +351,20 @@ func AddedSkillStatuses(ctx context.Context, dao db.DAO) ([]SkillStatus, error) 
 	return statuses, nil
 }
 
+// ServedSkill is an added skill whose manifest still matches its catalog.
+type ServedSkill struct {
+	SkillEntry
+	CatalogRef string
+}
+
 // ServedSkills returns the added skills whose manifest still matches the
 // catalog, with their entries.
-func ServedSkills(ctx context.Context, dao db.DAO) ([]SkillEntry, error) {
+func ServedSkills(ctx context.Context, dao db.DAO) ([]ServedSkill, error) {
 	statuses, err := AddedSkillStatuses(ctx, dao)
 	if err != nil {
 		return nil, err
 	}
-	var served []SkillEntry
+	var served []ServedSkill
 	for _, st := range statuses {
 		if st.Status != "ok" {
 			continue
@@ -368,7 +377,7 @@ func ServedSkills(ctx context.Context, dao db.DAO) ([]SkillEntry, error) {
 		if err != nil {
 			return nil, err
 		}
-		served = append(served, e)
+		served = append(served, ServedSkill{SkillEntry: e, CatalogRef: st.CatalogRef})
 	}
 	return served, nil
 }

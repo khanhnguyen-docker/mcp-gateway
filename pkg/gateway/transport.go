@@ -15,7 +15,7 @@ import (
 )
 
 func (g *Gateway) startStdioServer(ctx context.Context, _ io.Reader, _ io.Writer) error {
-	transport := &mcp.StdioTransport{}
+	transport := &skillsTransport{inner: &mcp.StdioTransport{}, g: g}
 	return g.mcpServer.Run(ctx, transport)
 }
 
@@ -59,7 +59,7 @@ func (g *Gateway) startStreamingServer(ctx context.Context, ln net.Listener) err
 	streamHandler := mcp.NewStreamableHTTPHandler(func(_ *http.Request) *mcp.Server {
 		return g.mcpServer
 	}, nil)
-	mux.Handle("/mcp", originSecurityHandler(streamHandler))
+	mux.Handle("/mcp", originSecurityHandler(g.skillsHTTPHandler(streamHandler)))
 
 	// Wrap with authentication middleware
 	var handler http.Handler = mux

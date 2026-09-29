@@ -216,6 +216,11 @@ func (g *Gateway) reloadConfiguration(ctx context.Context, configuration Configu
 		)
 	}
 
+	if g.Skills {
+		g.loadSkills(ctx)
+		g.registerSkillCapabilities()
+	}
+
 	g.health.SetHealthy()
 
 	return nil

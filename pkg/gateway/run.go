@@ -80,6 +80,9 @@ type Gateway struct {
 	// Track all tool registrations for mcp-exec
 	toolRegistrations map[string]ToolRegistration
 
+	// Served SEP-2640 skills and what they registered on the MCP server
+	skills *skillsState
+
 	// Track ongoing refresh operations per server to prevent concurrent/recursive refreshes
 	refreshMu         sync.Mutex
 	refreshingServers map[string]bool
@@ -126,6 +129,7 @@ func NewGateway(config Config, docker docker.Client) *Gateway {
 		serverAvailableCapabilities: make(map[string]*Capabilities),
 		toolRegistrations:           make(map[string]ToolRegistration),
 		refreshingServers:           make(map[string]bool),
+		skills:                      &skillsState{},
 	}
 	g.clientPool = newClientPool(config.Options, docker, g)
 
@@ -254,10 +258,21 @@ func (g *Gateway) Run(ctx context.Context) error {
 		log.Log("- Interceptors enabled:", strings.Join(g.Interceptors, ", "))
 	}
 
+	// Skills are read before the server exists: instructions are fixed at creation.
+	g.loadSkills(ctx)
+	var skillsCaps *mcp.ServerCapabilities
+	var instructions string
+	if g.Skills {
+		skillsCaps = skillsServerCapabilities()
+		instructions = skillsInstructions(g.servedSkills())
+	}
+
 	g.mcpServer = mcp.NewServer(&mcp.Implementation{
 		Name:    "Docker AI MCP Gateway",
 		Version: "2.0.1",
 	}, &mcp.ServerOptions{
+		Capabilities: skillsCaps,
+		Instructions: instructions,
 		SubscribeHandler: func(_ context.Context, req *mcp.SubscribeRequest) error {
 			log.Log("- Client subscribed to URI:", req.Params.URI)
 			// The MCP SDK doesn't provide ServerSession in SubscribeHandler because it already
@@ -315,6 +330,10 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// Add profile loading middleware for initialize method
 	if g.UseProfiles {
 		middlewares = append(middlewares, g.profileLoadingMiddleware())
+	}
+
+	if g.Skills {
+		middlewares = append(middlewares, g.skillsMiddleware())
 	}
 
 	if len(middlewares) > 0 {

@@ -87,6 +87,11 @@ var (
 
 	// Profile template usage metrics
 	TemplateUsageCounter metric.Int64Counter
+
+	// Skills (SEP-2640): adds by the CLI, loads by delivery mode, refused reads by class
+	SkillAddCounter           metric.Int64Counter
+	SkillLoadCounter          metric.Int64Counter
+	SkillVerifyFailureCounter metric.Int64Counter
 )
 
 // Init initializes the telemetry package with global providers
@@ -128,6 +133,16 @@ func Init() {
 			fmt.Fprintf(os.Stderr, "[MCP-TELEMETRY] Error creating tool duration histogram: %v\n", err)
 		}
 	}
+
+	SkillAddCounter, _ = meter.Int64Counter("mcp.skill.adds",
+		metric.WithDescription("Number of skills approved with docker mcp skill add"),
+		metric.WithUnit("1"))
+	SkillLoadCounter, _ = meter.Int64Counter("mcp.skill.loads",
+		metric.WithDescription("Number of SKILL.md loads, by delivery mode"),
+		metric.WithUnit("1"))
+	SkillVerifyFailureCounter, _ = meter.Int64Counter("mcp.skill.verify_failures",
+		metric.WithDescription("Number of skill file reads refused, by failure class"),
+		metric.WithUnit("1"))
 
 	ToolErrorCounter, err = meter.Int64Counter("mcp.tool.errors",
 		metric.WithDescription("Number of tool call errors"),
@@ -975,4 +990,29 @@ func RecordToolSchemaDialect(ctx context.Context, serverName, field, outcome str
 			attribute.String("mcp.tool.schema_field", field),
 			attribute.String("mcp.tool.schema_outcome", outcome),
 		))
+}
+
+// RecordSkillAdd counts a skill approval.
+func RecordSkillAdd(ctx context.Context, catalogRef string) {
+	if SkillAddCounter == nil {
+		return
+	}
+	SkillAddCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("mcp.catalog.ref", catalogRef)))
+}
+
+// RecordSkillLoad counts a SKILL.md load; mode is native or compat.
+func RecordSkillLoad(ctx context.Context, mode string) {
+	if SkillLoadCounter == nil {
+		return
+	}
+	SkillLoadCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("mcp.skill.mode", mode)))
+}
+
+// RecordSkillVerifyFailure counts a refused skill file read; class is
+// unlisted, digest, or size.
+func RecordSkillVerifyFailure(ctx context.Context, class string) {
+	if SkillVerifyFailureCounter == nil {
+		return
+	}
+	SkillVerifyFailureCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("mcp.skill.verify_class", class)))
 }

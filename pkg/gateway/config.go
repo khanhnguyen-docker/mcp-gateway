@@ -45,4 +45,6 @@ type Options struct {
 	// Schema dialect they were declared in, instead of translating pre-2020-12
 	// dialects that 2020-12-only clients reject.
 	PreserveToolSchemaDialect bool
+	// Skills serves added SEP-2640 skills (feature flag "skills").
+	Skills bool
 }
