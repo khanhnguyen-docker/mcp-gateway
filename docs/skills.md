@@ -72,6 +72,12 @@ docker mcp skill add myorg/skills:v1 refunds
 docker mcp client connect claude-desktop      # or: claude-code
 ```
 
+If `~/.claude` exists, `skill add` also writes a stub Claude Code skill at
+`~/.claude/skills/<name>/SKILL.md` (name and description only, pointing at
+`load_skill`), so the skill shows up as `/<name>` and Claude Code can pick it
+by description. `skill rm` deletes the stub; stubs are marked in their
+frontmatter metadata and no other skill directory is ever touched.
+
 Restart the client. The gateway's instructions list the skill; ask the model
 to load it, or run the `skill-myorg-refunds` prompt where the client exposes
 MCP prompts (Claude Desktop shows them in the + menu, Claude Code as

@@ -285,6 +285,9 @@ func AddSkill(ctx context.Context, dao db.DAO, refStr, nameOrURI string, asJSON 
 	}
 	telemetry.Init()
 	telemetry.RecordSkillAdd(ctx, refStr)
+	if err := writeClaudeSkillStub(entry); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not write the Claude Code skill stub: %v\n", err)
+	}
 	if asJSON {
 		return printJSON(SkillStatus{Name: skills.Name(entry.URI), URI: entry.URI, CatalogRef: refStr, ManifestDigest: dgst, CurrentDigest: dgst, Status: "ok"})
 	}
@@ -308,7 +311,10 @@ func RemoveSkill(ctx context.Context, dao db.DAO, nameOrURI string) error {
 	case 0:
 		return fmt.Errorf("skill %q is not added", nameOrURI)
 	case 1:
-		return dao.RemoveSkill(ctx, matches[0].CatalogRef, matches[0].URI)
+		if err := dao.RemoveSkill(ctx, matches[0].CatalogRef, matches[0].URI); err != nil {
+			return err
+		}
+		return removeClaudeSkillStub(matches[0].URI)
 	}
 	uris := make([]string, len(matches))
 	for i, m := range matches {

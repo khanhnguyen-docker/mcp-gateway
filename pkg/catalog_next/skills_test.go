@@ -147,3 +147,55 @@ func TestSkillsRoundTripDbAndAdd(t *testing.T) {
 	assert.Equal(t, "missing", statuses[0].Status)
 	_ = db.AddedSkill{}
 }
+
+func TestClaudeSkillStubFollowsAddAndRemove(t *testing.T) {
+	ctx := t.Context()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	require.NoError(t, os.MkdirAll(filepath.Join(home, ".claude"), 0o755))
+	dao := setupTestDB(t)
+
+	for dir, ref := range map[string]string{"acme": "acme/skills:v1", "globex": "globex/skills:v1"} {
+		entries, _, err := LoadSkills(filepath.Join(fixtures, "publishers", dir), dir)
+		require.NoError(t, err)
+		dbCat, err := (Catalog{Ref: ref, CatalogArtifact: CatalogArtifact{Title: ref, Skills: entries}}).ToDb()
+		require.NoError(t, err)
+		require.NoError(t, dao.UpsertCatalog(ctx, dbCat))
+	}
+
+	require.NoError(t, AddSkill(ctx, dao, "acme/skills:v1", "refunds", false))
+	stub := filepath.Join(home, ".claude", "skills", "refunds", "SKILL.md")
+	data, err := os.ReadFile(stub)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "name: refunds\n")
+	assert.Contains(t, string(data), "description: Process refunds the Acme way.\n")
+	assert.Contains(t, string(data), `load_skill tool with name "skill://acme/refunds/SKILL.md"`)
+	assert.NotContains(t, string(data), "Acme refunds.", "the stub must not carry the skill body")
+
+	// A colliding name from another publisher gets a qualified directory.
+	require.NoError(t, AddSkill(ctx, dao, "globex/skills:v1", "refunds", false))
+	_, err = os.Stat(filepath.Join(home, ".claude", "skills", "globex-refunds", "SKILL.md"))
+	require.NoError(t, err)
+
+	// Removing deletes only the matching stub; a foreign skill is untouched.
+	foreign := filepath.Join(home, ".claude", "skills", "mine", "SKILL.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(foreign), 0o755))
+	require.NoError(t, os.WriteFile(foreign, []byte("---\nname: mine\ndescription: x\n---\n"), 0o644))
+	require.NoError(t, RemoveSkill(ctx, dao, "skill://acme/refunds/SKILL.md"))
+	_, err = os.Stat(stub)
+	assert.True(t, os.IsNotExist(err))
+	_, err = os.Stat(foreign)
+	require.NoError(t, err)
+	_, err = os.Stat(filepath.Join(home, ".claude", "skills", "globex-refunds", "SKILL.md"))
+	require.NoError(t, err)
+}
+
+func TestClaudeSkillStubSkippedWithoutClaude(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	entries, _, err := LoadSkills(filepath.Join(fixtures, "simple"), "fixtures")
+	require.NoError(t, err)
+	require.NoError(t, writeClaudeSkillStub(entries[0]))
+	_, err = os.Stat(filepath.Join(home, ".claude"))
+	assert.True(t, os.IsNotExist(err))
+}
