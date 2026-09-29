@@ -130,6 +130,13 @@ Operations for managing MCP server configurations:
 
 Operations for managing working sets (profiles) of servers:
 - **`mcp.profile.operations`** - Profile operations (create, push, pull, remove)
+
+#### Skills (SEP-2640, `skills` feature)
+- **`mcp.skill.adds`** - Skills approved with `docker mcp skill add`. Attribute: `mcp.catalog.ref`
+- **`mcp.skill.loads`** - `SKILL.md` loads. Attribute `mcp.skill.mode`: `native` (client declared
+  the skills extension and read the resource) or `compat` (`load_skill` tool or skill prompt)
+- **`mcp.skill.verify_failures`** - Skill file reads refused. Attribute `mcp.skill.verify_class`:
+  `unlisted` (not in the added manifest), `digest`, or `size`
 - **`mcp.profile.operation.duration`** - Duration of profile operations
 
 ## Metric Attributes

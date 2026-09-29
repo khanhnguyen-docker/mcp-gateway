@@ -42,3 +42,39 @@ served until added again. `allowed-tools` in frontmatter is never honored.
 - At most 512 files and 16 MiB per skill.
 - A nested `SKILL.md` is a file of the enclosing skill and a skill of its own;
   add each separately.
+
+## Serving
+
+With the feature on, `docker mcp gateway run` serves every added skill whose
+manifest still matches its catalog:
+
+- **Native** (client declares `io.modelcontextprotocol/skills` at initialize):
+  `skills/list`, `skills/get`, `resources/directory/read`, and `resources/read`
+  of `skill://` files. Each `SKILL.md` is also listed in `resources/list`.
+- **Compat** (every other client): a "Skills available" index in the server
+  instructions, the `load_skill`, `read_skill_file`, and `find_skills` tools,
+  and one `skill-<publisher>-<name>` prompt per skill. Every response carrying
+  skill text starts with a banner naming the catalog, URI, and manifest digest.
+
+Every file read is rehashed against the manifest recorded by `skill add`. A
+read of a file that is not in the manifest, or whose bytes changed, is refused
+with an error naming the class: `unlisted`, `digest`, or `size`.
+
+`make conformance-skills` runs the SEP-2640 scenarios from
+[modelcontextprotocol/conformance](https://github.com/modelcontextprotocol/conformance)
+against a gateway serving the fixtures (needs docker, node, jq, curl).
+
+## Try it in Claude Desktop or Claude Code
+
+```bash
+docker mcp feature enable skills
+docker mcp skill pull myorg/skills:v1
+docker mcp skill add myorg/skills:v1 refunds
+docker mcp client connect claude-desktop      # or: claude-code
+```
+
+Restart the client. The gateway's instructions list the skill; ask the model
+to load it, or run the `skill-myorg-refunds` prompt where the client exposes
+MCP prompts (Claude Desktop shows them in the + menu, Claude Code as
+`/mcp__MCP_DOCKER__skill-myorg-refunds`). Supporting files come through
+`read_skill_file`.

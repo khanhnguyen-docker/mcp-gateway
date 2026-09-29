@@ -74,3 +74,42 @@ Local toolchain note: `go build ./...` fails on Go 1.27 in a vendored grpc file
 Checks run: `go test ./pkg/skills ./pkg/catalog_next ./pkg/db`,
 `make skills-roundtrip` (5 skills, identical manifests, blob store rehashed),
 `make lint-darwin`, `go test -short ./...` (results in the STOP 2 report).
+
+## Parts 3 and 4: serving, compat mode, telemetry
+
+Patterns followed:
+- `pkg/gateway/dynamic_mcps.go` for the compat tools (`ToolRegistration`,
+  `withToolTelemetry`, jsonschema input schemas) and `pkg/prompts/discover.go`
+  for prompts.
+- `pkg/gateway/reload.go` for registering and removing capabilities under
+  `capabilitiesMu`; `pkg/gateway/transport.go` for the transport wiring;
+  `pkg/interceptors/interceptors.go` for the receiving middleware shape.
+- `pkg/telemetry/telemetry.go` for the three counters and `docs/telemetry/README.md`
+  for their documentation.
+
+How D6 is met without upgrading go-sdk: `skillsTransport` wraps the stdio
+`Connection` and `skillsHTTPHandler` sits in front of the streamable handler.
+Both call `handleSkillsMethod`, which answers `skills/list`, `skills/get`, and
+`resources/directory/read` with the SEP shapes. `resources/read` of `skill://`
+URIs is a known method and is handled in `skillsMiddleware`. The SSE transport
+is not shimmed (compat mode only there).
+
+Decisions taken here:
+- Each served `SKILL.md` is registered as an SDK resource (name, description,
+  `text/markdown`) so `resources/list` carries the SEP's resource metadata;
+  this is the only place skill URIs are registered, so nothing double-lists them.
+- Per-session mode is read from the session's `InitializeParams` in the
+  `tools/list` and `prompts/list` middleware, which strips the compat surface
+  for native sessions. Nothing else is per session in go-sdk.
+- Prompt names are `skill-<publisher>-<name>`, with a numeric suffix on collision.
+- `skills/list` and `skills/get` carry `ttlMs: 30000` and `cacheScope: private`
+  and a `_meta["io.docker.mcp-gateway/provenance"]` with catalog ref and
+  manifest digest. `resultType` is not emitted (see spec Limitations).
+- Read failures: unlisted -> `-32602`; digest/size -> `-32603`; every message
+  starts with `skill file refused (<class>)`.
+- Conformance runs at `--spec-version 2025-11-25` (the newest version go-sdk
+  v1.4.1 negotiates; 2026-07-28 is the stateless wire the SDK does not speak).
+
+Checks run: `go test ./pkg/gateway -run Skill`, `make skills-roundtrip`,
+`make conformance-skills`, `make lint-darwin`, `go test -short ./...`
+(results in the final report).

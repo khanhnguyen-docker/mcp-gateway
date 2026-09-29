@@ -70,7 +70,8 @@ from upstream servers in this milestone. Skill content is a prompt-injection
 surface; keeping one origin keeps provenance simple and avoids the confused-deputy
 path the SEP warns about.
 
-**D6. Native protocol.** `skills/list` (paginated, `ttlMs` 30000), `skills/get`
+**D6. Native protocol.** (Implemented in `pkg/gateway/skills.go` and
+`skills_transport.go`.) `skills/list` (paginated, `ttlMs` 30000), `skills/get`
 (`-32602` for unknown), `resources/directory/read` (`mimeType` `inode/directory`,
 `-32602` for non-directories), and `resources/read` for skill files. Capabilities
 advertise `extensions["io.modelcontextprotocol/skills"] = {directoryRead: true}`.
@@ -226,5 +227,9 @@ Counters, following `pkg/telemetry`: `mcp.skill.adds`, `mcp.skill.loads`
 - **Transports.** The native-method shim covers stdio and streaming. The SSE
   transport gets compat mode only.
 - **`resultType`.** The SEP examples carry `"resultType": "complete"` but its
-  field tables do not list it. The implementation follows whatever the
-  conformance scenarios require and this line is updated at Part 3.
+  field tables do not list it and the conformance suite deliberately does not
+  check it (`src/seps/sep-2640.yaml`). It is not emitted.
+- **Protocol version.** go-sdk v1.4.1 negotiates up to 2025-11-25, so
+  `make conformance-skills` runs the suite at that version. `ttlMs` and
+  `cacheScope` are emitted anyway; the suite marks those checks not applicable
+  before 2026-07-28.

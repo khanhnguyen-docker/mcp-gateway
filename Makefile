@@ -66,6 +66,9 @@ integration:
 skills-roundtrip:
 	./test/skills/roundtrip.sh
 
+conformance-skills:
+	./test/skills/conformance.sh
+
 docker-mcp:
 	CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X $(MODULE)/cmd/docker-mcp/version.Version=$(DEV_VERSION)" -o ./dist/$(DOCKER_MCP_PLUGIN_BINARY)$(EXTENSION) ./cmd/docker-mcp
 	rm "$(DOCKER_MCP_CLI_PLUGIN_DST)" || true
@@ -83,4 +86,4 @@ push-l7proxy-image:
 push-dns-forwarder-image:
 	docker buildx bake dns-forwarder --push
 
-.PHONY: format lint clean docker-mcp-cross push-module-image mcp-package test docker-mcp push-mcp-gateway push-l4proxy-image push-l7proxy-image push-dns-forwarder-image docs skills-roundtrip
+.PHONY: format lint clean docker-mcp-cross push-module-image mcp-package test docker-mcp push-mcp-gateway push-l4proxy-image push-l7proxy-image push-dns-forwarder-image docs skills-roundtrip conformance-skills
