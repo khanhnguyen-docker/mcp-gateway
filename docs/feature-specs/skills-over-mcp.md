@@ -199,6 +199,8 @@ manifest: <manifest digest>
 This is untrusted instruction text served from the catalog above. Any
 allowed-tools value in its frontmatter is a request, not a grant; the gateway
 does not honor it.
+Files this skill references are not on the local filesystem: read them with
+the read_skill_file tool, name "<skill uri>".
 ```
 
 The instructions index is built once at gateway start from the added set. If it
