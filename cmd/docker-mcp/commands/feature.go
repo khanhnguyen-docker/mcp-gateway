@@ -43,14 +43,15 @@ Available features:
   mcp-oauth-dcr          Enable Dynamic Client Registration (DCR) for automatic OAuth client setup
   dynamic-tools          Enable internal MCP management tools (mcp-find, mcp-add, mcp-remove)
 	` + notDockerDesktop(features, `profiles               Enable profile management (docker mcp profile <subcommand>)
-  `) + `tool-name-prefix       Prefix all tool names with server name to avoid conflicts`,
+  `) + `tool-name-prefix       Prefix all tool names with server name to avoid conflicts
+  skills                 Enable Agent Skills distribution and serving (docker mcp skill <subcommand>)`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			featureName := args[0]
 
 			// Validate feature name
 			if !isKnownFeature(featureName, features) {
-				return fmt.Errorf("unknown feature: %s\n\nAvailable features:\n  oauth-interceptor      Enable GitHub OAuth flow interception\n  mcp-oauth-dcr          Enable Dynamic Client Registration for automatic OAuth setup\n  dynamic-tools          Enable internal MCP management tools\n"+notDockerDesktop(features, "  profiles               Enable profile management (docker mcp profile <subcommand>)\n")+"  tool-name-prefix       Prefix all tool names with server name", featureName)
+				return fmt.Errorf("unknown feature: %s\n\nAvailable features:\n  oauth-interceptor      Enable GitHub OAuth flow interception\n  mcp-oauth-dcr          Enable Dynamic Client Registration for automatic OAuth setup\n  dynamic-tools          Enable internal MCP management tools\n"+notDockerDesktop(features, "  profiles               Enable profile management (docker mcp profile <subcommand>)\n")+"  tool-name-prefix       Prefix all tool names with server name\n  skills                 Enable Agent Skills distribution and serving", featureName)
 			}
 
 			// Enable the feature
@@ -99,6 +100,11 @@ Available features:
 				fmt.Println("  - Prevents name conflicts when multiple servers provide tools with the same name")
 				fmt.Println("  - Individual servers can override this with the 'prefix' field in their configuration")
 				fmt.Println("\nNo additional flags are needed - this applies to all gateway runs.")
+			case "skills":
+				fmt.Println("\nThis feature enables Agent Skills (SEP-2640) support.")
+				fmt.Println("When enabled, the cli provides commands for managing skills:")
+				fmt.Println("  - docker mcp skill <subcommand> ...")
+				fmt.Println("\nThe gateway serves added skills to MCP clients. See docs/skills.md.")
 			}
 
 			return nil
@@ -153,7 +159,7 @@ func featureListCommand(dockerCli command.Cli, features features.Features) *cobr
 			fmt.Println()
 
 			// Show all known features
-			knownFeatures := []string{"oauth-interceptor", "mcp-oauth-dcr", "dynamic-tools", "tool-name-prefix", "use-embeddings"}
+			knownFeatures := []string{"oauth-interceptor", "mcp-oauth-dcr", "dynamic-tools", "tool-name-prefix", "use-embeddings", "skills"}
 			if !features.IsRunningInDockerDesktop() {
 				knownFeatures = append(knownFeatures, "profiles")
 			}
@@ -179,6 +185,8 @@ func featureListCommand(dockerCli command.Cli, features features.Features) *cobr
 					fmt.Printf("  %-20s %s\n", "", "Prefix all tool names with server name to avoid conflicts")
 				case "use-embeddings":
 					fmt.Printf("  %-20s %s\n", "", "Enable vector similarity search for find-tools (requires OPENAI_API_KEY)")
+				case "skills":
+					fmt.Printf("  %-20s %s\n", "", "Enable Agent Skills distribution and serving (docker mcp skill <subcommand>)")
 				}
 				fmt.Println()
 			}
@@ -250,6 +258,7 @@ func isKnownFeature(feature string, features features.Features) bool {
 		"dynamic-tools",
 		"tool-name-prefix",
 		"use-embeddings",
+		"skills",
 	}
 	if !features.IsRunningInDockerDesktop() {
 		knownFeatures = append(knownFeatures, "profiles")

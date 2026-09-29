@@ -107,6 +107,9 @@ func Root(ctx context.Context, cwd string, dockerCli command.Cli, features featu
 		cmd.AddCommand(catalogCommand(dockerCli))
 		cmd.AddCommand(configCommand(dockerClient))
 	}
+	if isFeatureEnabledFromCli(dockerCli, "skills") {
+		cmd.AddCommand(skillCommand())
+	}
 	cmd.AddCommand(clientCommand(dockerCli, cwd, features))
 	cmd.AddCommand(featureCommand(dockerCli, features))
 	cmd.AddCommand(gatewayCommand(dockerClient, dockerCli, features))
