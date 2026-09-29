@@ -161,6 +161,42 @@ func pullSkillBlobs(ctx context.Context, ref name.Reference, entries []SkillEntr
 	return nil
 }
 
+// autoAddSkills approves every skill of a freshly pulled catalog and drops
+// approvals for skills that left it, so pulling is the approval step
+// (Khanh, 2026-09-29: no manual add). skill rm still opts out until the next pull.
+func autoAddSkills(ctx context.Context, dao db.DAO, catalog Catalog) error {
+	inCatalog := map[string]bool{}
+	for _, e := range catalog.Skills {
+		inCatalog[e.URI] = true
+		dgst, err := skills.ManifestDigest(e.Resources)
+		if err != nil {
+			return err
+		}
+		if err := dao.AddSkill(ctx, db.AddedSkill{CatalogRef: catalog.Ref, URI: e.URI, ManifestDigest: dgst}); err != nil {
+			return err
+		}
+		if err := writeClaudeSkillStub(e); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not write the Claude Code skill stub for %s: %v\n", e.URI, err)
+		}
+	}
+	added, err := dao.ListAddedSkills(ctx)
+	if err != nil {
+		return err
+	}
+	for _, a := range added {
+		if a.CatalogRef != catalog.Ref || inCatalog[a.URI] {
+			continue
+		}
+		if err := dao.RemoveSkill(ctx, a.CatalogRef, a.URI); err != nil {
+			return err
+		}
+		if err := removeClaudeSkillStub(a.URI); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ReadSkillFile returns the bytes of a listed skill file from the local store,
 // rehashed against the entry on every read. Errors wrap skills.ErrUnlisted,
 // skills.ErrDigest, or skills.ErrSize.

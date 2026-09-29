@@ -57,7 +57,12 @@ first segment and doubles as the RFC 3986 authority; it is never resolved. The
 publisher is given at push time (`--publisher`, default: the first path segment
 of the OCI repository, e.g. `myorg` for `myorg/skills:v1`).
 
-**D4. Approval is `docker mcp skill add`.** It records the manifest digest,
+**D4. Approval is the catalog pull (changed 2026-09-29 on Khanh's call; the
+original design required `docker mcp skill add` per skill).** `catalog pull` and
+`skill pull` record the manifest digest of every skill in the catalog and drop
+approvals for skills that left it; `skill add` re-adds and `skill rm` opts out
+until the next pull. The paragraph below describes the recorded-digest
+mechanics, which are unchanged. It records the manifest digest,
 sha256 over the RFC 8785 canonical JSON of the entry's `resources` array sorted by
 `uri`, in the local store. The gateway serves only added skills and verifies every
 file read against the recorded manifest, not the catalog's current one. If a

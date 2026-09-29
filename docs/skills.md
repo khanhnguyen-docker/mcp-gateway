@@ -21,7 +21,8 @@ docker mcp skill push ./skills  localhost:5000/s:v1 --publisher acme
 # Pull the catalog and its skill files into ~/.docker/mcp/skills
 docker mcp skill pull myorg/skills:v1
 
-# Approve a skill: records the manifest digest the gateway will verify against
+# Pulling approves every skill in the catalog (records each manifest digest).
+# add/rm are manual overrides: rm opts a skill out until the next pull.
 docker mcp skill add myorg/skills:v1 refunds
 docker mcp skill add myorg/skills:v1 skill://myorg/refunds/SKILL.md   # when the name is ambiguous
 
@@ -68,11 +69,10 @@ against a gateway serving the fixtures (needs docker, node, jq, curl).
 ```bash
 docker mcp feature enable skills   # already on by default
 docker mcp skill pull myorg/skills:v1
-docker mcp skill add myorg/skills:v1 refunds
 docker mcp client connect claude-desktop      # or: claude-code
 ```
 
-If `~/.claude` exists, `skill add` also writes a stub Claude Code skill at
+If `~/.claude` exists, a pull (and `skill add`) also writes a stub Claude Code skill at
 `~/.claude/skills/<name>/SKILL.md` (name and description only, pointing at
 `load_skill`), so the skill shows up as `/<name>` and Claude Code can pick it
 by description. `skill rm` deletes the stub; stubs are marked in their

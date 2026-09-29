@@ -200,3 +200,45 @@ func TestClaudeSkillStubSkippedWithoutClaude(t *testing.T) {
 	_, err = os.Stat(filepath.Join(home, ".claude"))
 	assert.True(t, os.IsNotExist(err))
 }
+
+func TestAutoAddSkillsOnPull(t *testing.T) {
+	ctx := t.Context()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	require.NoError(t, os.MkdirAll(filepath.Join(home, ".claude"), 0o755))
+	dao := setupTestDB(t)
+
+	entries, _, err := LoadSkills(filepath.Join(fixtures, "full"), "fixtures")
+	require.NoError(t, err)
+	cat := Catalog{Ref: "fixtures/full:v1", CatalogArtifact: CatalogArtifact{Title: "full", Skills: entries}}
+	dbCat, err := cat.ToDb()
+	require.NoError(t, err)
+	require.NoError(t, dao.UpsertCatalog(ctx, dbCat))
+
+	// A pull approves everything in the catalog and writes the Claude stubs.
+	require.NoError(t, autoAddSkills(ctx, dao, cat))
+	served, err := ServedSkills(ctx, dao)
+	require.NoError(t, err)
+	assert.Len(t, served, 2)
+	_, err = os.Stat(filepath.Join(home, ".claude", "skills", "helper", "SKILL.md"))
+	require.NoError(t, err)
+
+	// The next pull no longer carries the nested skill: approval and stub go away.
+	cat.Skills = entries[:1]
+	dbCat, err = cat.ToDb()
+	require.NoError(t, err)
+	require.NoError(t, dao.UpsertCatalog(ctx, dbCat))
+	require.NoError(t, autoAddSkills(ctx, dao, cat))
+	served, err = ServedSkills(ctx, dao)
+	require.NoError(t, err)
+	require.Len(t, served, 1)
+	assert.Equal(t, "skill://fixtures/full/SKILL.md", served[0].URI)
+	_, err = os.Stat(filepath.Join(home, ".claude", "skills", "helper"))
+	assert.True(t, os.IsNotExist(err))
+
+	// A manual opt-out holds until the next pull.
+	require.NoError(t, RemoveSkill(ctx, dao, "full"))
+	served, err = ServedSkills(ctx, dao)
+	require.NoError(t, err)
+	assert.Empty(t, served)
+}
