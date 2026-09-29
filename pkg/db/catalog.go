@@ -27,6 +27,7 @@ type Catalog struct {
 	Source      string          `db:"source"`
 	LastUpdated *time.Time      `db:"last_updated"`
 	Servers     []CatalogServer `db:"-"`
+	Skills      []CatalogSkill  `db:"-"`
 }
 
 type CatalogServer struct {
@@ -92,6 +93,11 @@ func (d *dao) GetCatalog(ctx context.Context, ref string) (*Catalog, error) {
 	}
 	catalog.Servers = servers
 
+	catalog.Skills, err = d.listCatalogSkills(ctx, catalog.Ref)
+	if err != nil {
+		return nil, err
+	}
+
 	return &catalog, nil
 }
 
@@ -142,6 +148,16 @@ func (d *dao) UpsertCatalog(ctx context.Context, catalog Catalog) error {
 		}
 	}
 
+	for i := range catalog.Skills {
+		catalog.Skills[i].CatalogRef = catalog.Ref
+	}
+	if len(catalog.Skills) > 0 {
+		const skillQuery = `INSERT INTO catalog_skill (catalog_ref, uri, entry) VALUES (:catalog_ref, :uri, :entry)`
+		if _, err = tx.NamedExecContext(ctx, skillQuery, catalog.Skills); err != nil {
+			return err
+		}
+	}
+
 	if err = tx.Commit(); err != nil {
 		return err
 	}
@@ -186,6 +202,9 @@ func (d *dao) ListCatalogs(ctx context.Context) ([]Catalog, error) {
 			return nil, fmt.Errorf("failed to unmarshal servers: %w", err)
 		}
 		catalogs[i] = row.Catalog
+		if catalogs[i].Skills, err = d.listCatalogSkills(ctx, row.Ref); err != nil {
+			return nil, err
+		}
 	}
 
 	return catalogs, nil

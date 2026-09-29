@@ -29,6 +29,7 @@ type DAO interface {
 	CatalogDAO
 	MigrationStatusDAO
 	PullRecordDAO
+	SkillDAO
 
 	// Normally unnecessary to call this
 	Close() error

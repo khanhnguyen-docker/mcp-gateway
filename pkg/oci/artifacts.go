@@ -82,7 +82,31 @@ func GetArtifactDigest[T any](artifactType string, content T) (string, error) {
 	return fmt.Sprintf("%x", manifestDigest), nil
 }
 
+// ExtraLayer is an additional blob pushed alongside the JSON content layer.
+type ExtraLayer struct {
+	MediaType   string
+	Data        []byte
+	Annotations map[string]string
+}
+
+// Descriptor returns the OCI descriptor of the layer; its digest is the
+// sha256 of Data.
+func (l ExtraLayer) Descriptor() oci.Descriptor {
+	return oci.Descriptor{
+		MediaType:   l.MediaType,
+		Digest:      digest.FromBytes(l.Data),
+		Size:        int64(len(l.Data)),
+		Annotations: l.Annotations,
+	}
+}
+
 func PushArtifact[T any](ctx context.Context, ref name.Reference, artifactType string, content T, subject *oci.Descriptor) (string, error) {
+	return PushArtifactWithLayers(ctx, ref, artifactType, content, subject, nil)
+}
+
+// PushArtifactWithLayers pushes the JSON content as the first layer followed
+// by extra blobs, deduplicated by digest.
+func PushArtifactWithLayers[T any](ctx context.Context, ref name.Reference, artifactType string, content T, subject *oci.Descriptor, extra []ExtraLayer) (string, error) {
 	contentBytes, err := json.Marshal(content)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal content: %w", err)
@@ -116,6 +140,19 @@ func PushArtifact[T any](ctx context.Context, ref name.Reference, artifactType s
 
 	if subject != nil {
 		manifest.Subject = subject
+	}
+
+	pushed := map[digest.Digest]bool{}
+	for _, layer := range extra {
+		desc := layer.Descriptor()
+		if pushed[desc.Digest] {
+			continue
+		}
+		pushed[desc.Digest] = true
+		manifest.Layers = append(manifest.Layers, desc)
+		if err := uploadBlob(ctx, ref, layer.Data, desc.Digest); err != nil {
+			return "", fmt.Errorf("failed to upload layer %s: %w", desc.Digest, err)
+		}
 	}
 
 	// Upload empty config blob
@@ -235,6 +272,24 @@ func (c *customManifest) Manifest() (*v1.Manifest, error) {
 
 func (c *customManifest) RawManifest() ([]byte, error) {
 	return c.data, nil
+}
+
+// FetchBlob downloads one blob of the repository by digest.
+func FetchBlob(ctx context.Context, ref name.Reference, dgst string) ([]byte, error) {
+	h, err := v1.NewHash(dgst)
+	if err != nil {
+		return nil, err
+	}
+	layer, err := remote.Layer(ref.Context().Digest(h.String()), remote.WithAuthFromKeychain(authn.DefaultKeychain), remote.WithContext(ctx), remote.WithTransport(desktop.ProxyTransport()))
+	if err != nil {
+		return nil, err
+	}
+	rc, err := layer.Compressed()
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	return io.ReadAll(rc)
 }
 
 // ReadArtifact reads an OCI artifact by reference and returns parsed Catalog from the first layer

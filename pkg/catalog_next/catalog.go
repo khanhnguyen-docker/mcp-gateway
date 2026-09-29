@@ -16,6 +16,8 @@ import (
 type CatalogArtifact struct {
 	Title   string   `yaml:"title" json:"title" validate:"required,min=1"`
 	Servers []Server `yaml:"servers" json:"servers" validate:"dive"`
+	// Skills are SEP-2640 entries distributed with the catalog (D2).
+	Skills []SkillEntry `yaml:"skills,omitempty" json:"skills,omitempty"`
 }
 
 type Catalog struct {
@@ -92,6 +94,9 @@ func NewFromDb(dbCatalog *db.Catalog) CatalogWithDigest {
 		}
 	}
 
+	// Rows were written by skillEntriesToDb, so decoding cannot fail here.
+	skillEntries, _ := skillEntriesFromDb(dbCatalog.Skills)
+
 	catalog := CatalogWithDigest{
 		Catalog: Catalog{
 			Ref:    dbCatalog.Ref,
@@ -99,6 +104,7 @@ func NewFromDb(dbCatalog *db.Catalog) CatalogWithDigest {
 			CatalogArtifact: CatalogArtifact{
 				Title:   dbCatalog.Title,
 				Servers: servers,
+				Skills:  skillEntries,
 			},
 		},
 		Digest: dbCatalog.Digest,
@@ -135,12 +141,18 @@ func (catalog Catalog) ToDb() (db.Catalog, error) {
 		return db.Catalog{}, fmt.Errorf("failed to get catalog digest: %w", err)
 	}
 
+	dbSkills, err := skillEntriesToDb(catalog.Skills)
+	if err != nil {
+		return db.Catalog{}, fmt.Errorf("failed to encode skills: %w", err)
+	}
+
 	return db.Catalog{
 		Ref:     catalog.Ref,
 		Digest:  digest,
 		Title:   catalog.Title,
 		Source:  catalog.Source,
 		Servers: dbServers,
+		Skills:  dbSkills,
 	}, nil
 }
 

@@ -76,6 +76,10 @@ func pullCatalog(ctx context.Context, dao db.DAO, ociService oci.Service, refStr
 		return nil, fmt.Errorf("invalid catalog: %w", err)
 	}
 
+	if err := pullSkillBlobs(ctx, ref, catalog.Skills); err != nil {
+		return nil, fmt.Errorf("failed to pull skill files: %w", err)
+	}
+
 	dbCatalog, err := catalog.ToDb()
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert catalog to db: %w", err)
