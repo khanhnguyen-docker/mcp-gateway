@@ -74,6 +74,7 @@ func TestIsFeatureEnabledDynamicTools(t *testing.T) {
 		}
 		enabled := isFeatureEnabledFromConfig(configFile, "dynamic-tools")
 		assert.True(t, enabled, "dynamic-tools should default to enabled when Features is nil")
+		assert.True(t, isFeatureEnabledFromConfig(configFile, "skills"), "skills should default to enabled")
 	})
 }
 

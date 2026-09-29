@@ -101,9 +101,10 @@ host; the SEP requires explicit approval and the gateway has no way to grant it.
 and their own entries.** Adding one never adds the other. Mirrors the SEP's
 nested-skills section and its per-skill consent rule.
 
-**D10. Everything is behind `docker mcp feature enable skills`, default off.**
-With the flag off, `skills/list` returns an empty list and no compat tools or
-prompts are registered. Same lifecycle as `dynamic-tools` and `use-embeddings`.
+**D10. Everything is behind the `skills` feature flag, on by default since
+2026-09-29 (Khanh's call, replacing the original default-off).** With the flag
+off (`docker mcp feature disable skills`), `skills/list` returns an empty list
+and no compat tools or prompts are registered. Same lifecycle as `dynamic-tools`.
 
 **D11. Names collide across publishers; nothing dedupes by name.** Identity is
 the URI. `skill add` and `skill rm` accept a bare name only when it is unique

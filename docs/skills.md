@@ -5,9 +5,8 @@ through OCI catalogs and served by the gateway per
 [SEP-2640](https://modelcontextprotocol.io/seps/2640-skills-extension).
 Design: [feature-specs/skills-over-mcp.md](feature-specs/skills-over-mcp.md).
 
-```bash
-docker mcp feature enable skills
-```
+The `skills` feature is on by default. Turn it off with
+`docker mcp feature disable skills`.
 
 ## Commands
 
@@ -67,7 +66,7 @@ against a gateway serving the fixtures (needs docker, node, jq, curl).
 ## Try it in Claude Desktop or Claude Code
 
 ```bash
-docker mcp feature enable skills
+docker mcp feature enable skills   # already on by default
 docker mcp skill pull myorg/skills:v1
 docker mcp skill add myorg/skills:v1 refunds
 docker mcp client connect claude-desktop      # or: claude-code
