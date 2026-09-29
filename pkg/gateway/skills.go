@@ -413,14 +413,31 @@ func toolArgs(req *mcp.CallToolRequest, dst any) error {
 	return json.Unmarshal(req.Params.Arguments, dst)
 }
 
-// loadSkillText returns banner plus SKILL.md body for compat delivery.
+// skillFileList names the skill's supporting files relative to its root, so a
+// compat host does not have to guess what a directory contains.
+func skillFileList(s catalognext.ServedSkill) string {
+	root := skills.Root(s.URI) + "/"
+	var b strings.Builder
+	for _, r := range s.Resources {
+		if r.URI == s.URI {
+			continue
+		}
+		fmt.Fprintf(&b, "- %s\n", strings.TrimPrefix(r.URI, root))
+	}
+	if b.Len() == 0 {
+		return "This skill has no supporting files.\n\n"
+	}
+	return "Files in this skill (read with read_skill_file):\n" + b.String() + "\n"
+}
+
+// loadSkillText returns banner, file list, and SKILL.md body for compat delivery.
 func (g *Gateway) loadSkillText(ctx context.Context, s catalognext.ServedSkill) (string, error) {
 	data, err := g.readSkillFile(ctx, s, s.URI)
 	if err != nil {
 		return "", err
 	}
 	telemetry.RecordSkillLoad(ctx, "compat")
-	return skillBanner(s.CatalogRef, s.URI, s.ManifestDigest) + string(data), nil
+	return skillBanner(s.CatalogRef, s.URI, s.ManifestDigest) + skillFileList(s) + string(data), nil
 }
 
 func (g *Gateway) skillTools() []ToolRegistration {
@@ -468,7 +485,7 @@ func (g *Gateway) skillTools() []ToolRegistration {
 			uri := skills.Resolve(s.URI, args.Path)
 			if _, ok := s.Find(uri); !ok {
 				telemetry.RecordSkillVerifyFailure(ctx, "unlisted")
-				return errorResult(fmt.Errorf("skill file refused (unlisted): %s is not in the manifest of %s", uri, s.URI)), nil
+				return errorResult(fmt.Errorf("skill file refused (unlisted): %s is not in the manifest of %s\n%s", uri, s.URI, skillFileList(s))), nil
 			}
 			data, err := g.readSkillFile(ctx, s, uri)
 			if err != nil {

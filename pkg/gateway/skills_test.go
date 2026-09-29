@@ -205,6 +205,8 @@ func TestIntegrationSkillsCompat(t *testing.T) {
 	text := res.Content[0].(*mcp.TextContent).Text
 	assert.True(t, strings.HasPrefix(text, "[Docker MCP Gateway skill]\ncatalog: fixtures/skills:v1\nskill: skill://fixtures/full/SKILL.md\n"), text)
 	assert.Contains(t, text, "# Full")
+	assert.Contains(t, text, "Files in this skill (read with read_skill_file):\n- references/policy.md\n")
+	assert.Contains(t, text, "- templates/regional/eu-invoice.md\n")
 
 	// Colliding name is refused with the candidates named (D11).
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{Name: toolLoadSkill, Arguments: map[string]any{"name": "refunds"}})
@@ -224,6 +226,7 @@ func TestIntegrationSkillsCompat(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, res.IsError)
 	assert.Contains(t, res.Content[0].(*mcp.TextContent).Text, "refused (unlisted)")
+	assert.Contains(t, res.Content[0].(*mcp.TextContent).Text, "- scripts/run.sh")
 
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{Name: toolFindSkills, Arguments: map[string]any{"query": "acme"}})
 	require.NoError(t, err)
