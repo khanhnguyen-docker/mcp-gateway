@@ -80,6 +80,7 @@ func TestReadSkillFileVerifies(t *testing.T) {
 
 func TestSkillsRoundTripDbAndAdd(t *testing.T) {
 	ctx := t.Context()
+	t.Setenv("HOME", t.TempDir()) // AddSkill writes Claude Code stubs under $HOME/.claude when it exists
 	dao := setupTestDB(t)
 
 	acme, _, err := LoadSkills(filepath.Join(fixtures, "publishers", "acme"), "acme")
