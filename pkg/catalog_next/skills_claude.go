@@ -38,10 +38,14 @@ func writeClaudeSkillStub(entry SkillEntry) error {
 	name := skills.Name(entry.URI)
 	desc, _ := entry.Frontmatter["description"].(string)
 	target := filepath.Join(dir, name)
-	if other, err := stubURI(target); err == nil && other != "" && other != entry.URI {
-		// Same name from another publisher: keep both, qualified.
+	if other, err := stubURI(target); err == nil && other != entry.URI {
+		// The name is taken by the user's own skill or another publisher's
+		// stub: never overwrite it, qualify ours instead.
 		name = skillPublisherOf(entry.URI) + "-" + name
 		target = filepath.Join(dir, name)
+		if other, err := stubURI(target); err == nil && other != entry.URI {
+			return fmt.Errorf("%s is already a skill that is not this one; not writing a stub", target)
+		}
 	}
 	fm, err := yaml.Marshal(map[string]any{
 		"name":        name,

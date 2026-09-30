@@ -191,6 +191,27 @@ func TestClaudeSkillStubFollowsAddAndRemove(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestClaudeSkillStubNeverOverwritesUserSkill(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	mine := filepath.Join(home, ".claude", "skills", "simple", "SKILL.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(mine), 0o755))
+	require.NoError(t, os.WriteFile(mine, []byte("---\nname: simple\ndescription: my own\n---\nmine\n"), 0o644))
+
+	entries, _, err := LoadSkills(filepath.Join(fixtures, "simple"), "fixtures")
+	require.NoError(t, err)
+	require.NoError(t, writeClaudeSkillStub(entries[0]))
+
+	data, err := os.ReadFile(mine)
+	require.NoError(t, err)
+	assert.Equal(t, "---\nname: simple\ndescription: my own\n---\nmine\n", string(data), "user skill untouched")
+	_, err = os.Stat(filepath.Join(home, ".claude", "skills", "fixtures-simple", "SKILL.md"))
+	require.NoError(t, err, "stub written under the qualified name")
+	require.NoError(t, removeClaudeSkillStub(entries[0].URI))
+	_, err = os.Stat(mine)
+	require.NoError(t, err)
+}
+
 func TestClaudeSkillStubSkippedWithoutClaude(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
